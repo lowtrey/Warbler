@@ -234,9 +234,9 @@ def profile(user_id):
             # - On success, it should redirect to the user detail page.
             flash("Profile updated successfully.", "success")
             return redirect(f"users/{user.id}")
-
-        flash("Invalid credentials.", 'danger')
-        return redirect("/")
+        else:
+            flash("Invalid credentials.", 'danger')
+            return redirect("/")
 
     else:
         return render_template("/users/edit.html", form=form)
@@ -319,8 +319,12 @@ def homepage():
     """
 
     if g.user:
+        # Grab followed user ids and append global user id
+        followed_user_ids = [user.id for user in g.user.following]
+        followed_user_ids.append(g.user.id)
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(followed_user_ids))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
