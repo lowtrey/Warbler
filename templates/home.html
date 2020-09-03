@@ -52,7 +52,7 @@
               <p>{{ msg.text }}</p>
             </div>
             {% if msg.user.id != g.user.id %}
-            <form method="POST" action="/messages/{{ msg.id }}/like" class="messages-like">
+            <form method="POST" action="/messages/{{ msg.id }}/{{'unlike' if msg in g.user.likes else 'like'}}" class="messages-like">
               <button class="
                 btn 
                 btn-sm 
