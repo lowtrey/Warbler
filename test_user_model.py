@@ -7,7 +7,7 @@
 
 import os
 from unittest import TestCase
-
+from sqlalchemy import exc
 from models import db, User, Message, Follows
 
 # BEFORE we import our app, let's set an environmental variable
@@ -39,20 +39,22 @@ class UserModelTestCase(TestCase):
         Message.query.delete()
         Follows.query.delete()
 
-        u = User(
+        u = User.signup(
             email="test@test.com",
             username="testuser",
-            password="HASHED_PASSWORD"
+            password="HASHED_PASSWORD",
+            image_url="https://www.testimage.com"
         )
 
-        u2 = User(
+        u2 = User.signup(
             email="testtwo@test.com",
             username="testusertwo",
-            password="HASHED_PASSWORD_TWO"
+            password="HASHED_PASSWORD_TWO",
+            image_url="https://www.testimage.com"
         )
 
-        db.session.add(u)
-        db.session.add(u2)
+        # db.session.add(u)
+        # db.session.add(u2)
         db.session.commit()
 
         self.client = app.test_client()
@@ -106,3 +108,51 @@ class UserModelTestCase(TestCase):
 
         self.assertTrue(self.user_one.is_followed_by(self.user_two))
         self.assertTrue(self.user_two.is_followed_by(self.user_one))
+
+    def test_user_signup(self):
+        """Does the User.signup method work as expected?"""
+
+        user = User.signup(
+            username="test_signup",
+            password="password",
+            email="testsignup@test.com",
+            image_url="https://www.testimage.com"
+        )
+        db.session.commit()
+
+        self.assertIsNotNone(user)
+        self.assertIsNotNone(user.id)
+
+        # Test IntegrityError if username is taken
+        with self.assertRaises(exc.IntegrityError):
+
+            invalid_user = User.signup(
+                username="test_signup",
+                password="password",
+                email="testsignup@test.com",
+                image_url="https://www.testimage.com"
+            )
+            db.session.commit()
+
+        # Test TypeError if non-nullable field left out
+        with self.assertRaises(TypeError):
+
+            invalid_user_two = User.signup(
+                username="test_signup_two",
+                email="testsignuptwo@test.com",
+                image_url="https://www.testimage.com"
+            )
+            db.session.commit()
+    
+    def test_user_auth(self):
+        """Does the User.authenticate method work as expected?"""
+
+        self.assertIs(self.user_one, User.authenticate(self.user_one.username, "HASHED_PASSWORD"))
+        self.assertIs(self.user_two, User.authenticate(self.user_two.username, "HASHED_PASSWORD_TWO"))
+
+        # Test Invalid username
+        self.assertFalse(User.authenticate("invalid_username", "HASHED_PASSWORD"))
+
+        # Test Invalid password
+        self.assertFalse(User.authenticate(self.user_one.username, "INVALID_PASSWORD"))
+        self.assertFalse(User.authenticate(self.user_two.username, "INVALID_PASSWORD_TWO"))
