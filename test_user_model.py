@@ -30,7 +30,7 @@ db.create_all()
 
 
 class UserModelTestCase(TestCase):
-    """Test views for messages."""
+    """Test views for Users."""
 
     def setUp(self):
         """Create test client, add sample data."""
@@ -52,9 +52,6 @@ class UserModelTestCase(TestCase):
             password="HASHED_PASSWORD_TWO",
             image_url="https://www.testimage.com"
         )
-
-        # db.session.add(u)
-        # db.session.add(u2)
         db.session.commit()
 
         self.client = app.test_client()
