@@ -1,12 +1,14 @@
 """Message model tests."""
 
 import os
-from app import app
 from unittest import TestCase
 from sqlalchemy import exc
 from models import db, User, Message, Follows
 
 os.environ['DATABASE_URL'] = "postgresql:///warbler-test"
+
+from app import app
+app.config['TESTING'] = True
 
 db.drop_all()
 db.create_all()
@@ -53,6 +55,11 @@ class MessageModelTestCase(TestCase):
     self.message_one = message_one
     self.message_four = message_four
 
+  def tearDown(self):
+    """Clean up fouled transactions."""
+
+    db.session.rollback()
+
   def test_message_model(self):
     """Does basic model work?"""
     
@@ -66,11 +73,11 @@ class MessageModelTestCase(TestCase):
     self.assertIs(self.message_one.user, self.user_one)
     self.assertIs(self.message_four.user, self.user_two)
 
-  # def test_message_creation(self):
-  #   """Is an error raised for non-nullable values?"""
+  def test_message_creation(self):
+    """Is an error raised for non-nullable values?"""
 
-  #   with self.assertRaises(exc.IntegrityError):
-  #     invalid_message = Message(text=None)
-
-  #     db.session.add(invalid_message)
-  #     # self.assertRaises(IntegrityError, db.session.commit)
+    with self.assertRaises(exc.IntegrityError):
+      invalid_message = Message()
+      db.session.add(invalid_message)
+      db.session.commit()
+      
