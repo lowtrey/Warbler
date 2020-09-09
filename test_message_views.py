@@ -25,7 +25,7 @@ from app import app, CURR_USER_KEY
 # Create our tables (we do this here, so we only create the tables
 # once for all tests --- in each test, we'll delete the data
 # and create fresh new clean test data
-
+db.drop_all()
 db.create_all()
 
 # Don't have WTForms use CSRF at all, since it's a pain to test
@@ -51,8 +51,13 @@ class MessageViewTestCase(TestCase):
 
         db.session.commit()
 
+    def tearDown(self):
+        """Clean up fouled transactions."""
+
+        db.session.rollback()
+
     def test_add_message(self):
-        """Can use add a message?"""
+        """Can a logged in user add a message?"""
 
         # Since we need to change the session to mimic logging in,
         # we need to use the changing-session trick:
@@ -61,8 +66,8 @@ class MessageViewTestCase(TestCase):
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.testuser.id
 
-            # Now, that session setting is saved, so we can have
-            # the rest of ours test
+            # Now, that session setting is saved, so we can run
+            # the rest of our tests
 
             resp = c.post("/messages/new", data={"text": "Hello"})
 
@@ -71,3 +76,25 @@ class MessageViewTestCase(TestCase):
 
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+    def test_delete_message(self):
+        """Can a logged in user delete a message?"""
+        
+        message = Message(text="Hello")
+        self.testuser.messages.append(message)
+        db.session.commit()
+
+        # Grab the message ID
+        message_id = self.testuser.messages[0].id
+
+        with self.client as c:
+            # Mimic logged in user
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            # Make sure it redirects
+            resp = c.post(f"/messages/{message_id}/delete", follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIsNone(Message.query.get(message.id))
+            self.assertEqual(len(User.query.get(self.testuser.id).messages), 0)
