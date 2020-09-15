@@ -49,6 +49,11 @@ class MessageViewTestCase(TestCase):
                                     password="testuser",
                                     image_url=None)
 
+        self.testusertwo = User.signup(username="testusertwo",
+                                        email="testtwo@test.com",
+                                        password="testusertwo",
+                                        image_url=None)
+
         db.session.commit()
 
     def tearDown(self):
@@ -98,3 +103,44 @@ class MessageViewTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIsNone(Message.query.get(message.id))
             self.assertEqual(len(User.query.get(self.testuser.id).messages), 0)
+
+    def test_delete_message_unauthorized(self):
+        """Can user delete another user's message?"""
+
+        message = Message(text="Hello again")
+        self.testusertwo.messages.append(message)
+        db.session.commit()
+
+        # Grab the message ID
+        message_id = self.testusertwo.messages[0].id
+
+        with self.client as c:
+            # Mimic logged in user (not message owner)
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            # Make sure it redirects
+            response = c.post(f"/messages/{message_id}/delete", follow_redirects=True)
+            html = response.get_data(as_text=True)  
+
+            self.assertEqual(response.status_code, 200) 
+            self.assertIn("Access unauthorized.", html)
+
+    def test_message_logged_out(self):
+        """Can a logged out user add or delete a message?"""
+
+        with self.client as c:
+            add_response = c.post("/messages/new", data={"text": "Hello"}, follow_redirects=True)
+            add_html = add_response.get_data(as_text=True)
+
+            # Make sure it redirects
+            self.assertEqual(add_response.status_code, 200)
+            self.assertIn("Access unauthorized.", add_html)
+
+
+            delete_response = c.post("/messages/1/delete", follow_redirects=True)
+            delete_html = delete_response.get_data(as_text=True)
+
+            # Make sure it redirects
+            self.assertEqual(delete_response.status_code, 200)
+            self.assertIn("Access unauthorized.", delete_html)
